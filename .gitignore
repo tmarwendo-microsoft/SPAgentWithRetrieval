@@ -74,3 +74,4 @@ TestResult.xml
 
 # Azure credentials cache
 .azure/
+.azure

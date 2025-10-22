@@ -2,13 +2,14 @@ namespace SPEAgentWithRetrieval.Models;
 
 public class ChatRequest
 {
-    public string Message { get; set; } = string.Empty;
+    public string FileName { get; set; } = string.Empty;
+
 }
 
 public class ChatResponse
 {
-    public string Response { get; set; } = string.Empty;
-    public List<RetrievedContent> Sources { get; set; } = new();
+    public string LlmResponse { get; set; } = string.Empty;
+    public string FileAuthor { get; set; } = string.Empty;
     public DateTime Timestamp { get; set; }
 }
 
@@ -18,4 +19,5 @@ public class RetrievedContent
     public string Content { get; set; } = string.Empty;
     public string Url { get; set; } = string.Empty;
     public string Source { get; set; } = string.Empty;
+    public string FileAuthor { get; set; } = string.Empty;
 }

@@ -31,6 +31,7 @@ class Program
                 services.AddScoped<IRetrievalService, CopilotRetrievalService>();
                 services.AddScoped<IFoundryService, FoundryService>();
                 services.AddScoped<IChatService, ChatService>();
+                services.AddScoped<IMailService, GraphMailService>();
 
                 // Add logging
                 services.AddLogging(builder =>
@@ -43,6 +44,8 @@ class Program
 
         // Get the chat service and logger
         var chatService = host.Services.GetRequiredService<IChatService>();
+        var mailService = host.Services.GetRequiredService<IMailService>();
+
         var logger = host.Services.GetRequiredService<ILogger<Program>>();
 
         logger.LogInformation("Azure AI Chat Agent with SharePoint RAG started");
@@ -56,12 +59,37 @@ class Program
         // Main chat loop
         while (true)
         {
-            Console.Write("You: ");
+            Console.Write("You: Should I run the compliance agent ? y/n. Type exit or quit to terminate ");
             var userInput = Console.ReadLine();
 
             if (string.IsNullOrWhiteSpace(userInput))
+            {
                 continue;
+            }
 
+            if (userInput.Equals("y", StringComparison.OrdinalIgnoreCase))
+            {
+                try
+                {
+                    // var test = mailService.SendMailAsync("Takudzwa Marwendo", "test", "test");
+                    // Process the chat request
+                    // string filesContentQuery = $"What are the policies listed in {userInput}?";
+                    // string rulesQuery = $"What are the rules that apply to {userInput}?";
+
+                    var chatRequest = new ChatRequest { FileName = userInput };
+                    var response = await chatService.ProcessChatAsync(chatRequest);
+
+                    Console.WriteLine($"Assistant: {response.LlmResponse}");
+                    Console.WriteLine();
+                }
+                catch (Exception ex)
+                {
+                    logger.LogError(ex, "Error in chat loop");
+                    Console.WriteLine("Sorry, I encountered an error. Please try again.");
+                    Console.WriteLine();
+                }
+            }
+            
             // Handle special commands
             if (userInput.Equals("exit", StringComparison.OrdinalIgnoreCase) || 
                 userInput.Equals("quit", StringComparison.OrdinalIgnoreCase))
@@ -75,38 +103,6 @@ class Program
                 Console.Clear();
                 Console.WriteLine("=== Azure AI Chat Agent with SharePoint RAG ===");
                 continue;
-            }
-
-            try
-            {
-                // Process the chat request
-                var chatRequest = new ChatRequest { Message = userInput };
-                var response = await chatService.ProcessChatAsync(chatRequest);
-
-                Console.WriteLine($"Assistant: {response.Response}");
-                
-                // Show sources if available
-                if (response.Sources.Any())
-                {
-                    Console.WriteLine();
-                    Console.WriteLine("Sources:");
-                    foreach (var source in response.Sources.Take(3)) // Show top 3 sources
-                    {
-                        Console.WriteLine($"  • {source.Title}");
-                        if (!string.IsNullOrEmpty(source.Url))
-                        {
-                            Console.WriteLine($"    {source.Url}");
-                        }
-                    }
-                }
-                
-                Console.WriteLine();
-            }
-            catch (Exception ex)
-            {
-                logger.LogError(ex, "Error in chat loop");
-                Console.WriteLine("Sorry, I encountered an error. Please try again.");
-                Console.WriteLine();
             }
         }
 

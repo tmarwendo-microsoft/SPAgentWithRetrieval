@@ -4,5 +4,5 @@ namespace SPEAgentWithRetrieval.Services;
 
 public interface IRetrievalService
 {
-    Task<List<RetrievedContent>> SearchAsync(string query, CancellationToken cancellationToken = default);
+    Task<List<RetrievedContent>> SearchAsync(string query, string filterExpression, CancellationToken cancellationToken = default);
 }

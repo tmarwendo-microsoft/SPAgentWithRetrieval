@@ -2,11 +2,7 @@
 # Visual Studio Version 17
 VisualStudioVersion = 17.5.2.0
 MinimumVisualStudioVersion = 10.0.40219.1
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SPEAgentWithRetrieval.Core", "SPEAgentWithRetrieval.Core\SPEAgentWithRetrieval.Core.csproj", "{AA2B13A3-F31C-493E-AD56-954692DB59D1}"
-EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SPEAgentWithRetrieval.Console", "SPEAgentWithRetrieval.Console\SPEAgentWithRetrieval.Console.csproj", "{F5ED96F3-D480-4DE3-A7C1-AC08DF713B8F}"
-EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "WebApiTemp", "WebApiTemp\WebApiTemp.csproj", "{78288FD7-325E-4962-A0F7-7EB554895771}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SPEAgentWithRetrieval", "SPEAgentWithRetrieval.csproj", "{F5ED96F3-D480-4DE3-A7C1-AC08DF713B8F}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution

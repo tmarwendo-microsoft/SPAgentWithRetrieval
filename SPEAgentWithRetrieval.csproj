@@ -1,13 +1,16 @@
-<Project Sdk="Microsoft.NET.Sdk">
+﻿<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
     <OutputType>Exe</OutputType>
     <TargetFramework>net8.0</TargetFramework>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
+    <UserSecretsId>a82ce462-6eb9-43a1-b06a-52a5a4b64bc8</UserSecretsId>
   </PropertyGroup>
 
   <ItemGroup>
+    <PackageReference Include="Azure.AI.Agents.Persistent" Version="1.1.0" />
+    <PackageReference Include="Azure.AI.Inference" Version="1.0.0-beta.5" />
     <PackageReference Include="Azure.AI.OpenAI" Version="1.0.0-beta.17" />
     <PackageReference Include="Azure.AI.Projects" Version="1.0.0-beta.2" />
     <PackageReference Include="Azure.Identity" Version="1.14.2" />

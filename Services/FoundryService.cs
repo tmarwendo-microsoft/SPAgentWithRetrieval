@@ -1,4 +1,5 @@
 using Azure.AI.Inference;
+using Azure.AI.Agents.Persistent;
 using Azure.Core;
 using Azure.Core.Pipeline;
 using Azure.Identity;
@@ -6,6 +7,7 @@ using Microsoft.Extensions.Options;
 using Microsoft.Extensions.Logging;
 using SPEAgentWithRetrieval.Models;
 using System.Text;
+using Azure;
 
 namespace SPEAgentWithRetrieval.Services;
 
@@ -25,26 +27,25 @@ public class FoundryService : IFoundryService
         _chatSettings = chatSettings.Value;
         _logger = logger;
 
-        // Create the inference endpoint URL (based on Azure AI Projects pattern)
-        var projectEndpoint = new Uri(_foundryOptions.ProjectEndpoint);
-        var inferenceEndpoint = $"{projectEndpoint.GetLeftPart(UriPartial.Authority)}/models";
+        var endpoint = new Uri(_foundryOptions.ProjectEndpoint);
+        var credential = new AzureKeyCredential(_foundryOptions.APIKey);
 
-        // Set up authentication with proper scope for Azure AI
-        var credential = new DefaultAzureCredential();
-        var clientOptions = new AzureAIInferenceClientOptions();
-        var tokenPolicy = new BearerTokenAuthenticationPolicy(credential, new string[] { "https://ai.azure.com/.default" });
-        clientOptions.AddPolicy(tokenPolicy, HttpPipelinePosition.PerRetry);
-
-        _chatClient = new ChatCompletionsClient(new Uri(inferenceEndpoint), credential, clientOptions);
+        _chatClient = new ChatCompletionsClient(
+            endpoint,
+            credential,
+            new AzureAIInferenceClientOptions()
+        );
     }
 
-    public async Task<string> GenerateResponseAsync(string userMessage, List<RetrievedContent> context, CancellationToken cancellationToken = default)
+    public async Task<string> GenerateResponseAsync(
+        List<RetrievedContent> rulesContext,
+        RetrievedContent fileContext,
+        CancellationToken cancellationToken = default)
     {
         try
         {
-            _logger.LogInformation("Generating response for user message with {ContextCount} context items", context.Count);
-
-            var systemMessage = BuildSystemMessage(context);
+            var systemMessage = BuildSystemMessage();
+            var userMessage = BuildUserMessage(rulesContext, fileContext);
 
             var requestOptions = new ChatCompletionsOptions()
             {
@@ -62,7 +63,6 @@ public class FoundryService : IFoundryService
             
             var assistantResponse = response.Value?.Content;
             
-            _logger.LogInformation("Successfully generated response");
             return assistantResponse ?? "I apologize, but I couldn't generate a response at this time.";
         }
         catch (Exception ex)
@@ -72,31 +72,44 @@ public class FoundryService : IFoundryService
         }
     }
 
-    private string BuildSystemMessage(List<RetrievedContent> context)
+    private string BuildSystemMessage()
     {
         var systemMessageBuilder = new StringBuilder();
-        systemMessageBuilder.AppendLine("You are a helpful assistant that answers questions based on the provided context from Microsoft 365 content.");
-        systemMessageBuilder.AppendLine("Use the following retrieved content to answer the user's question. If the context doesn't contain relevant information, say so clearly.");
+
+        systemMessageBuilder
+            .AppendLine("You are an compliance agent that detects policy violations in policy documents. You will be provided the relevant policy rules alongside the file contents at the end of these instructions."
+            + "Your job is to identify and classify issues with the file contents and produce a summary of all the violations."
+            + "Use the given rules only as the definitive source of rules. For each violation add a citation to the relevant rule violation. The citation must include the name of the rule book which contains the rule that has been violated"
+            + "and a brief summary of why you think there is a violation. Do not include any other section (such as recommendations, or a total tally count for number of violations) that does not correspond to the sections above");
+
         systemMessageBuilder.AppendLine();
-        systemMessageBuilder.AppendLine("Retrieved Context:");
-
-        foreach (var item in context)
-        {
-            systemMessageBuilder.AppendLine($"Source: {item.Title} ({item.Source})");
-            systemMessageBuilder.AppendLine($"Content: {item.Content}");
-            if (!string.IsNullOrEmpty(item.Url))
-            {
-                systemMessageBuilder.AppendLine($"URL: {item.Url}");
-            }
-            systemMessageBuilder.AppendLine();
-        }
-
         systemMessageBuilder.AppendLine("Instructions:");
-        systemMessageBuilder.AppendLine("- Answer based on the provided context");
+        systemMessageBuilder.AppendLine("- Complete task based on the provided context");
         systemMessageBuilder.AppendLine("- Be concise and accurate");
         systemMessageBuilder.AppendLine("- If asked about sources, reference the titles and URLs provided");
         systemMessageBuilder.AppendLine("- If the context doesn't contain enough information, be honest about limitations");
 
         return systemMessageBuilder.ToString();
+    }
+    
+    private string BuildUserMessage(List<RetrievedContent> rulesContext, RetrievedContent filesContext)
+    {
+        var userMessageBuilder = new StringBuilder();
+        userMessageBuilder.AppendLine("Rules: ");
+        userMessageBuilder.AppendLine();
+        
+        foreach (var item in rulesContext)
+        {
+            userMessageBuilder.AppendLine($"Source: {item.Title} ({item.Source})");
+            userMessageBuilder.AppendLine($"Rules to enforce: {item.Content}");
+            if (!string.IsNullOrEmpty(item.Url))
+                userMessageBuilder.AppendLine();
+        }
+        
+        userMessageBuilder.AppendLine("File contents: ");
+        userMessageBuilder.AppendLine();
+
+        userMessageBuilder.AppendLine($"{filesContext.Content}");
+        return userMessageBuilder.ToString();
     }
 }

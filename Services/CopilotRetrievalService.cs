@@ -5,6 +5,7 @@ using SPEAgentWithRetrieval.Models;
 using Microsoft.Graph;
 using System.Text.Json;
 using System.Text;
+using Microsoft.Graph.Models;
 
 namespace SPEAgentWithRetrieval.Services;
 
@@ -38,18 +39,16 @@ public class CopilotRetrievalService : IRetrievalService
         _graphClient = new GraphServiceClient(_credential, _microsoft365Options.Scopes);
     }
 
-    public async Task<List<RetrievedContent>> SearchAsync(string query, CancellationToken cancellationToken = default)
+    public async Task<List<RetrievedContent>> SearchAsync(string query, string _filterExpression, CancellationToken cancellationToken = default)
     {
         try
         {
-            _logger.LogInformation("Searching for query: {Query}", query);
-
             // Prepare the retrieval request body
             var requestBody = new
             {
                 queryString = query,
                 datasource = "sharepoint",
-                filterExpression = _microsoft365Options.FilterExpression,
+                // filterExpression = _filterExpression,
                 maximumNumberOfResults = _chatSettings.TopK,
                 resourceMetadata = new[] { "title", "author", "lastModifiedDateTime" }
             };
@@ -69,6 +68,7 @@ public class CopilotRetrievalService : IRetrievalService
             // Send request through Graph client
             var httpClient = new HttpClient();
             var token = await GetAccessTokenAsync();
+
             httpRequestMessage.Headers.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
             
             var response = await httpClient.SendAsync(httpRequestMessage, cancellationToken);
@@ -97,12 +97,11 @@ public class CopilotRetrievalService : IRetrievalService
                         Title = hit.ResourceMetadata?.Title ?? "Unknown",
                         Content = content,
                         Url = hit.WebUrl ?? "",
-                        Source = "SharePoint"
+                        Source = "SharePoint",
+                        FileAuthor = hit.ResourceMetadata?.Author ?? "Unknown"
                     });
                 }
             }
-
-            _logger.LogInformation("Retrieved {Count} items", retrievedContent.Count);
             return retrievedContent;
         }
         catch (Exception ex)
