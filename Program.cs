@@ -1,7 +1,10 @@
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
+using Microsoft.Identity.Web;
+using Microsoft.Identity.Web.UI;
 using SPEAgentWithRetrieval.Models;
 using SPEAgentWithRetrieval.Services;
 
@@ -9,103 +12,76 @@ namespace SPEAgentWithRetrieval;
 
 class Program
 {
-    static async Task Main(string[] args)
+    static void Main(string[] args)
     {
+        var builder = WebApplication.CreateBuilder(args);
+
         // Build configuration
-        var configuration = new ConfigurationBuilder()
+        builder.Configuration
             .SetBasePath(Directory.GetCurrentDirectory())
             .AddJsonFile("appsettings.json", optional: false, reloadOnChange: true)
-            .AddEnvironmentVariables()
-            .Build();
+            .AddEnvironmentVariables();
 
-        // Build host with dependency injection
-        var host = Host.CreateDefaultBuilder(args)
-            .ConfigureServices((context, services) =>
-            {
-                // Configure options
-                services.Configure<AzureAIFoundryOptions>(configuration.GetSection("AzureAIFoundry"));
-                services.Configure<Microsoft365Options>(configuration.GetSection("Microsoft365"));
-                services.Configure<ChatSettingsOptions>(configuration.GetSection("ChatSettings"));
-
-                // Register services
-                services.AddScoped<IRetrievalService, CopilotRetrievalService>();
-                services.AddScoped<IFoundryService, FoundryService>();
-                services.AddScoped<IChatService, ChatService>();
-                services.AddScoped<IMailService, GraphMailService>();
-
-                // Add logging
-                services.AddLogging(builder =>
-                {
-                    builder.AddConsole();
-                    builder.SetMinimumLevel(LogLevel.Information);
-                });
+        // Add Microsoft Identity platform authentication
+        builder.Services.AddMicrosoftIdentityWebAppAuthentication(builder.Configuration, "AzureAd")
+            .EnableTokenAcquisitionToCallDownstreamApi(new[] {
+                "https://graph.microsoft.com/Files.Read.All",
+                "https://graph.microsoft.com/Sites.Read.All",
+                "https://graph.microsoft.com/Mail.Send",
+                "https://graph.microsoft.com/User.Read.All"
             })
-            .Build();
+            .AddInMemoryTokenCaches();
 
-        // Get the chat service and logger
-        var chatService = host.Services.GetRequiredService<IChatService>();
-        var mailService = host.Services.GetRequiredService<IMailService>();
+        // Configure options
+        builder.Services.Configure<AzureAIFoundryOptions>(builder.Configuration.GetSection("AzureAIFoundry"));
+        builder.Services.Configure<Microsoft365Options>(builder.Configuration.GetSection("Microsoft365"));
+        builder.Services.Configure<ChatSettingsOptions>(builder.Configuration.GetSection("ChatSettings"));
 
-        var logger = host.Services.GetRequiredService<ILogger<Program>>();
+        // Register services
+        builder.Services.AddScoped<IRetrievalService, CopilotRetrievalService>();
+        builder.Services.AddScoped<IFoundryService, FoundryService>();
+        builder.Services.AddScoped<IChatService, ChatService>();
+        builder.Services.AddScoped<IMailService, GraphMailService>();
 
-        logger.LogInformation("Azure AI Chat Agent with SharePoint RAG started");
-        
-        Console.WriteLine("=== Azure AI Chat Agent with SharePoint RAG ===");
-        Console.WriteLine("Ask questions about your Microsoft 365 content!");
-        Console.WriteLine("Type 'exit' or 'quit' to end the conversation.");
-        Console.WriteLine("Type 'clear' to clear the console.");
-        Console.WriteLine();
+        // Add web services - Remove global authorization requirement
+        builder.Services.AddControllersWithViews()
+            .AddMicrosoftIdentityUI();
 
-        // Main chat loop
-        while (true)
+        builder.Services.AddRazorPages();
+
+        // Add logging
+        builder.Services.AddLogging(builder =>
         {
-            Console.Write("You: Should I run the compliance agent ? y/n. Type exit or quit to terminate ");
-            var userInput = Console.ReadLine();
+            builder.AddConsole();
+            builder.SetMinimumLevel(LogLevel.Information);
+        });
 
-            if (string.IsNullOrWhiteSpace(userInput))
-            {
-                continue;
-            }
+        var app = builder.Build();
 
-            if (userInput.Equals("y", StringComparison.OrdinalIgnoreCase))
-            {
-                try
-                {
-                    // var test = mailService.SendMailAsync("Takudzwa Marwendo", "test", "test");
-                    // Process the chat request
-                    // string filesContentQuery = $"What are the policies listed in {userInput}?";
-                    // string rulesQuery = $"What are the rules that apply to {userInput}?";
-
-                    var chatRequest = new ChatRequest { FileName = userInput };
-                    var response = await chatService.ProcessChatAsync(chatRequest);
-
-                    Console.WriteLine($"Assistant: {response.LlmResponse}");
-                    Console.WriteLine();
-                }
-                catch (Exception ex)
-                {
-                    logger.LogError(ex, "Error in chat loop");
-                    Console.WriteLine("Sorry, I encountered an error. Please try again.");
-                    Console.WriteLine();
-                }
-            }
-            
-            // Handle special commands
-            if (userInput.Equals("exit", StringComparison.OrdinalIgnoreCase) || 
-                userInput.Equals("quit", StringComparison.OrdinalIgnoreCase))
-            {
-                Console.WriteLine("Goodbye!");
-                break;
-            }
-
-            if (userInput.Equals("clear", StringComparison.OrdinalIgnoreCase))
-            {
-                Console.Clear();
-                Console.WriteLine("=== Azure AI Chat Agent with SharePoint RAG ===");
-                continue;
-            }
+        // Configure the HTTP request pipeline
+        if (!app.Environment.IsDevelopment())
+        {
+            app.UseExceptionHandler("/Home/Error");
+            app.UseHsts();
         }
 
-        await host.StopAsync();
+        app.UseHttpsRedirection();
+        app.UseStaticFiles();
+
+        app.UseRouting();
+
+        app.UseAuthentication();
+        app.UseAuthorization();
+
+        app.UseEndpoints(endpoints =>
+        {
+            endpoints.MapControllers();
+            endpoints.MapControllerRoute(
+                name: "default",
+                pattern: "{controller=Home}/{action=Index}/{id?}");
+            endpoints.MapRazorPages();
+        });
+
+        app.Run();
     }
 }

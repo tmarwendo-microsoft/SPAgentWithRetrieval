@@ -21,3 +21,10 @@ public class RetrievedContent
     public string Source { get; set; } = string.Empty;
     public string FileAuthor { get; set; } = string.Empty;
 }
+
+public class ErrorViewModel
+{
+    public string? RequestId { get; set; }
+
+    public bool ShowRequestId => !string.IsNullOrEmpty(RequestId);
+}

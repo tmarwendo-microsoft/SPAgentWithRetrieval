@@ -1,5 +1,6 @@
 using Microsoft.Extensions.Options;
 using Microsoft.Extensions.Logging;
+using Microsoft.Identity.Web;
 using SPEAgentWithRetrieval.Models;
 
 namespace SPEAgentWithRetrieval.Services;
@@ -73,6 +74,11 @@ public class ChatService : IChatService
                 FileAuthor = fileAuthor,
                 Timestamp = DateTime.UtcNow
             };
+        }
+        catch (Microsoft.Identity.Web.MicrosoftIdentityWebChallengeUserException ex)
+        {
+            _logger.LogWarning(ex, "Authentication challenge required for chat request");
+            throw; // Re-throw to let the controller's AuthorizeForScopes handle this
         }
         catch (Exception ex)
         {
