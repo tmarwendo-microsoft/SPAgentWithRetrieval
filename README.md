@@ -69,6 +69,9 @@ cd SPEAgentWithRetrieval
    cp appsettings.example.json appsettings.json
    ```
 
+ **NB** You will need your Azure AI inference endpoint (which is not your Azure AI Foundry Project endpoint). To get this navigate to `Models + Endpoints > name of Model` Switch the SDK to `Azure AI Inference SDK` and the code panel should have
+ some code sample with the relevant endpoint. This endpoint will look something like `https://{projectName}.cognitiveservices.azure.com/openai/deployments/{modelName}`
+ 
 2. Update `appsettings.json` with your values:
 
    ```json
@@ -82,8 +85,8 @@ cd SPEAgentWithRetrieval
        "SignedOutCallbackPath": "/signout-callback-oidc"
      },
      "AzureAIFoundry": {
-       "ProjectEndpoint": "your-azure-ai-foundry-endpoint",
-       "ModelName": "gpt-4o",
+       "ProjectEndpoint": "your-azure-ai-inference-endpoint",
+       "ModelName": "your model name",
        "APIKey": "your-api-key"
      },
      "Microsoft365": {
