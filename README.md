@@ -18,7 +18,7 @@ This project implements a **web application** chat agent using Azure AI Foundry 
 - Microsoft 365 tenant with SharePoint
 - Azure App Registration with delegated permissions
 
-## Local Development Setup
+## Getting Started
 
 ### 1. Clone the Repository
 
