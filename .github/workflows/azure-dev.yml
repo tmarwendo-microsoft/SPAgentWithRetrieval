@@ -6,9 +6,6 @@ on:
         description: The reason for running the workflow
         required: false
         default: Manual run
-  push:
-    branches:
-      - main
 
 # https://learn.microsoft.com/azure/developer/github/connect-from-azure?tabs=azure-portal%2Clinux#set-up-azure-login-with-openid-connect-authentication
 permissions:
@@ -29,33 +26,23 @@ env:
   AZURE_KEY_VAULT_RESOURCE_GROUP: ${{ vars.AZURE_KEY_VAULT_RESOURCE_GROUP }}
 
 jobs:
-  build:
-    runs-on: ubuntu-latest
-
+  template_validation_job:
+    runs-on: windows-latest
+    name: template validation
     steps:
-      - name: Checkout
-        
-      - name: Checkout
-        uses: actions/checkout@v3
+      - uses: actions/checkout@v4
 
-      - name: Install azd
-        uses: Azure/setup-azd@v2
-        
-      - name: 'Print manual run reason'
-        if: ${{ github.event_name == 'workflow_dispatch' }}
-        run: |
-          echo 'Reason: ${{ github.event.inputs.reason }}'
-        
-      - name: Setup .NET
-        uses: actions/setup-dotnet@v3
-        with:
-          dotnet-version: 8.0.x
+      - uses: microsoft/template-validation-action@Latest
+        id: validation
+        with: 
+          useDevContainer: false
+        env:
+          AZURE_CLIENT_ID: ${{ vars.AZURE_CLIENT_ID }}
+          AZURE_TENANT_ID: ${{ vars.AZURE_TENANT_ID }}
+          AZURE_SUBSCRIPTION_ID: ${{ vars.AZURE_SUBSCRIPTION_ID }}
+          AZURE_ENV_NAME: ${{ vars.AZURE_ENV_NAME }}
+          AZURE_LOCATION: ${{ vars.AZURE_LOCATION }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-      # devnote: TODO
-      # - name: Log in with Azure
-
-      # devnote: TODO
-      # - name: Provision Infrastructure
-
-      # devnote TODO
-      # - name: Deploy Application
+      - name: print result
+        run: cat ${{ steps.validation.outputs.resultFile }} 
