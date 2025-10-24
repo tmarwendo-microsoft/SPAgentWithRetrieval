@@ -1,42 +1,30 @@
-name: Validate AZD template
-on:
+name: Template Validation Sample Workflow
+on: 
   workflow_dispatch:
-  push:
-    branches: [ main ]
-    paths:
-      - "infra/**"
-  pull_request:
-    branches: [ main ]
-    paths:
-      - "infra/**"
 
 permissions:
   contents: read
-  actions: read
-  security-events: write
+  id-token: write
+  pull-requests: write
 
 jobs:
-  build:
-
-    runs-on: ubuntu-latest
+  template_validation_job:
+    runs-on: windows-latest
+    name: template validation
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
-      - name: Build Bicep for linting
-        uses: azure/CLI@v1
-        with:
-          inlineScript: az config set bicep.use_binary_from_path=false && az bicep build -f infra/main.bicep --stdout
-          
-      - name: Run Microsoft Security DevOps Analysis
-        uses: microsoft/security-devops-action@preview
-        id: msdo
-        continue-on-error: true
-        with:
-          tools: templateanalyzer
+      - uses: microsoft/template-validation-action@Latest
+        id: validation
+        with: 
+          useDevContainer: false
+        env:
+          AZURE_CLIENT_ID: ${{ vars.AZURE_CLIENT_ID }}
+          AZURE_TENANT_ID: ${{ vars.AZURE_TENANT_ID }}
+          AZURE_SUBSCRIPTION_ID: ${{ vars.AZURE_SUBSCRIPTION_ID }}
+          AZURE_ENV_NAME: ${{ vars.AZURE_ENV_NAME }}
+          AZURE_LOCATION: ${{ vars.AZURE_LOCATION }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Upload alerts to Security tab
-        uses: github/codeql-action/upload-sarif@v3
-        if: github.repository == 'Azure-Samples/azure-search-openai-demo-csharp'
-        with:
-          sarif_file: ${{ steps.msdo.outputs.sarifFile }}
+      - name: print result
+        run: cat ${{ steps.validation.outputs.resultFile }}  
