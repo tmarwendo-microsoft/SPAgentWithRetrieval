@@ -1,5 +1,7 @@
 name: Main Deployment
 on:
+  push:
+    branches: [main, user/** ]
   workflow_dispatch:
     inputs:
       reason:
@@ -18,12 +20,8 @@ env:
   AZURE_SUBSCRIPTION_ID: ${{ vars.AZURE_SUBSCRIPTION_ID }}
   AZURE_CREDENTIALS: ${{ secrets.AZURE_CREDENTIALS }}
   AZURE_RESOURCE_GROUP: ${{ vars.AZURE_RESOURCE_GROUP }}
-  AZURE_DEV_USER_AGENT: ${{ secrets.AZURE_DEV_USER_AGENT }}
-  # Existing resources, when applicable
-  AZURE_CONTAINER_REGISTRY_ENDPOINT: ${{ vars.AZURE_CONTAINER_REGISTRY_ENDPOINT }}
-  AZURE_AI_SERVICE_APP_KEY: ${{ vars.AZURE_AI_SERVICE_APP_KEY }}
-  AZURE_KEY_VAULT_NAME: ${{ vars.AZURE_KEY_VAULT_NAME }}
-  AZURE_KEY_VAULT_RESOURCE_GROUP: ${{ vars.AZURE_KEY_VAULT_RESOURCE_GROUP }}
+  AZURE_ENV_NAME: ${{ vars.AZURE_ENV_NAME }}
+  AZURE_LOCATION: ${{ vars.AZURE_LOCATION }}
 
 jobs:
   template_validation_job:
