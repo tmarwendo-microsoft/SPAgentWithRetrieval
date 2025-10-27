@@ -42,15 +42,10 @@ jobs:
         run: azd provision --no-prompt
         env:
           VAR: ${{ secrets.VAR }}
-          VAR: ${{ secrets.VAR }}
-          VAR_S: ${{ secrets.VAR_S }}
           VAR_S: ${{ secrets.VAR_S }}
 
       - name: Deploy Application
         run: azd deploy --no-prompt
         env:
           VAR: ${{ secrets.VAR }}
-          VAR: ${{ secrets.VAR }}
-          VAR_S: ${{ secrets.VAR_S }}
-          VAR_S: ${{ secrets.VAR_S }}
-        
+          VAR_S: ${{ secrets.VAR_S }}        
