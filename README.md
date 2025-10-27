@@ -1,16 +1,15 @@
 # Azure AI Chat Agent with SharePoint RAG
 
-This project implements a chat agent using Azure AI Foundry SDK that retrieves and grounds responses on SharePoint Embedded content through Microsoft 365 Copilot Retrieval API. Note that SPE datasource is in private preview for the Retrieval API. 
-
-This agent uses Azure AI Foundry and Retrieval API to enable contract managers reason with their documents.
+This project implements a **web application** chat agent using Azure AI Foundry SDK that retrieves and grounds responses on SharePoint content through Microsoft 365 Copilot Retrieval API. The application provides a web interface for compliance checking and document analysis.
 
 ## Features
 
+- **Web Interface**: ASP.NET Core MVC web application with authentication
 - **Azure AI Foundry Integration**: Uses Azure AI SDK for chat completions with configurable models
 - **SharePoint Content Retrieval**: Leverages Microsoft 365 Copilot Retrieval API for content grounding
-- **User Authentication**: Interactive browser authentication with token caching
-- **Configurable Filtering**: SharePoint path-based content filtering
-- **RAG Implementation**: Retrieval-augmented generation with proper source attribution
+- **Microsoft Identity Integration**: OAuth/OpenID Connect authentication with Microsoft 365
+- **Compliance Checking**: Automated policy compliance analysis and violation reporting
+- **Email Notifications**: Send compliance findings to document authors
 
 ## Prerequisites
 
@@ -19,9 +18,7 @@ This agent uses Azure AI Foundry and Retrieval API to enable contract managers r
 - Microsoft 365 tenant with SharePoint
 - Azure App Registration with delegated permissions
 
-## Setup (Console Application)
-
-> **📱 Application Type**: These setup instructions are specifically for the **Console Application** version of this project. Web application deployments require different Azure AD authentication configurations.
+## Getting Started
 
 ### 1. Clone the Repository
 
@@ -32,86 +29,98 @@ cd SPEAgentWithRetrieval
 
 ### 2. Configure Azure App Registration
 
-> **📝 Important**: These instructions are specifically for **Console Applications**. Web applications require different authentication platform configurations (SPA or Web platform with different redirect URIs and flows).
-
-1. **Create an Azure App Registration** in your tenant:
+1. **Create an Azure App Registration**:
    - Go to [Azure Portal](https://portal.azure.com)
    - Navigate to **Azure Active Directory** → **App registrations**
    - Click **New registration**
    - Name: your app name
    - Supported account types: **Accounts in this organizational directory only (Single tenant)**
+   - Redirect URI: **Web** platform with `https://localhost:5001/signin-oidc`
    - Click **Register**
 
-2. **Configure Authentication Platform** (Critical for Console Applications):
+2. **Configure Authentication**:
    - Go to **Authentication** in the left menu
    - Under **Platform configurations**:
-     - **Remove** any **Single-page application** platforms (these cause authentication conflicts)
-     - Click **Add a platform** → **Mobile and desktop applications**
-     - Set redirect URI to: `http://localhost`
-     - Click **Configure**
+     - Ensure **Web** platform is configured with redirect URI: `https://localhost:5001/signin-oidc`
+     - Add logout URL: `https://localhost:5001/signout-callback-oidc`
+     - Enable **ID tokens** under Implicit grant and hybrid flows
+   - **Do NOT** enable "Allow public client flows" for web applications
 
-3. **Configure API Permissions** (Delegated):
-   - Go to **API permissions** in the left menu
-   - Click **Add a permission** → **Microsoft Graph** → **Delegated permissions**
+3. **Create Client Secret**:
+   - Go to **Certificates & secrets**
+   - Click **New client secret**
+   - Add description and set expiration
+   - **Copy the secret value** immediately (you won't see it again)
+
+4. **Configure API Permissions**:
+   - Go to **API permissions** → **Add a permission** → **Microsoft Graph** → **Delegated permissions**
    - Add these permissions:
-     - `Files.Read.All` (for SharePoint file access)
-     - `Sites.Read.All` (for SharePoint site access)
-     - 'FileStorageContainer.Selected` delegated (if you need SharePointEmbedded container access)
-   - Click **Grant admin consent** for your organization
-
-5. **Note Important IDs**:
-   - Copy the **Application (client) ID** from the Overview page
-   - Copy the **Directory (tenant) ID** from the Overview page
-   - You'll need these for your `appsettings.json`
-
-> **⚠️ Common Issue**: If you get authentication errors like `AADSTS9002327` or `AADSTS7000218`, it means your app registration is configured as a Single-Page Application instead of a Public Client. Make sure to remove all SPA platforms and only use Mobile/Desktop platform with `http://localhost` redirect URI.
-
-> **🌐 Web Application Note**: If you're building a web application instead of a console app, you'll need to configure the authentication platform differently:
-> - Use **Single-page application** or **Web** platform instead of Mobile/Desktop
-> - Set appropriate redirect URIs for your web app (e.g., `https://localhost:5001/signin-oidc`)
-> - **Do NOT** enable "Allow public client flows" for web applications
+     - `Files.Read.All`
+     - `Sites.Read.All`
+     - `Mail.Send`
+     - `User.Read.All`
+   - Click **Grant admin consent**
 
 ### 3. Configure Application Settings
 
 1. Copy the example configuration:
+
    ```bash
    cp appsettings.example.json appsettings.json
    ```
 
+ **NB** You will need your Azure AI inference endpoint (which is not your Azure AI Foundry Project endpoint). To get this navigate to `Models + Endpoints > name of Model` Switch the SDK to `Azure AI Inference SDK` and the code panel should have
+ some code sample with the relevant endpoint. This endpoint will look something like `https://{projectName}.cognitiveservices.azure.com/openai/deployments/{modelName}`
+
 2. Update `appsettings.json` with your values:
+
    ```json
    {
+     "AzureAd": {
+       "Instance": "https://login.microsoftonline.com/",
+       "TenantId": "your-tenant-id",
+       "ClientId": "your-client-id",
+       "ClientSecret": "your-client-secret",
+       "CallbackPath": "/signin-oidc",
+       "SignedOutCallbackPath": "/signout-callback-oidc"
+     },
      "AzureAIFoundry": {
-       "ProjectEndpoint": "https://your-foundry-resource.services.ai.azure.com",
-       "ModelName": "gpt-4.1" //or your model name
+       "ProjectEndpoint": "your-azure-ai-inference-endpoint",
+       "ModelName": "your model name",
+       "APIKey": "your-api-key"
      },
      "Microsoft365": {
-       "TenantId": "your-tenant-id-guid",
-       "ClientId": "your-client-id-guid",
-       "FilterExpression": "path:\"https://your-tenant.sharepoint.com/your-content-path/\"" //or any SharePoint URL. Check Retrieval API documentation for the URL
+       "TenantId": "your-tenant-id",
+       "ClientId": "your-client-id",
+       "FilterExpression": "path:\"https://your-sharepoint-site.sharepoint.com\""
      }
    }
    ```
 
-### 4. Install Dependencies
+### 4. Run Locally
 
 ```bash
+# Install dependencies
 dotnet restore
-```
 
-### 5. Build and Run
-
-```bash
+# Build the application
 dotnet build
+
+# Run the application
 dotnet run
 ```
+
+The application will be available at:
+
+- HTTP: `http://localhost:5000`
+- HTTPS: `https://localhost:5001`
 
 ## Usage
 
 1. **First Run**: The application will open a browser for Microsoft 365 authentication
 2. **Subsequent Runs**: Tokens are cached, no re-authentication needed
-3. **Ask Questions**: Type questions about your SharePoint content
-4. **View Sources**: Responses include source document citations
+3. **Compliance Checking**: Use the web interface to run compliance checks
+4. **View Results**: Responses include source document citations and violation reports
 
 ## Architecture
 
@@ -222,7 +231,9 @@ The application is structured around the following components:
 - Ensure `Sites.Read.All` and `Files.ReadWrite.All` permissions are granted
 
 ### Azure AI Foundry
-- Verify the project endpoint URL is correct
+**NB** You will need your Azure AI inference endpoint (which is not your Azure AI Foundry Project endpoint). To get this navigate to `Models + Endpoints > name of Model` Switch the SDK to `Azure AI Inference SDK` and the code panel should have
+ some code sample with the relevant endpoint. This endpoint will look something like `https://{projectName}.cognitiveservices.azure.com/openai/deployments/{modelName}`
+- Ensure you have the right endpoint url (see above)
 - Ensure the model name matches your deployment
 - Check Azure AI Foundry resource permissions
 

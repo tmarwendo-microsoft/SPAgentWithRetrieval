@@ -5,6 +5,8 @@ using SPEAgentWithRetrieval.Models;
 using Microsoft.Graph;
 using System.Text.Json;
 using System.Text;
+using Microsoft.Graph.Models;
+using Microsoft.Identity.Web;
 
 namespace SPEAgentWithRetrieval.Services;
 
@@ -14,42 +16,35 @@ public class CopilotRetrievalService : IRetrievalService
     private readonly Microsoft365Options _microsoft365Options;
     private readonly ChatSettingsOptions _chatSettings;
     private readonly ILogger<CopilotRetrievalService> _logger;
-    private readonly Azure.Core.TokenCredential _credential;
+    private readonly ITokenAcquisition _tokenAcquisition;
 
     public CopilotRetrievalService(
         IOptions<Microsoft365Options> microsoft365Options,
         IOptions<ChatSettingsOptions> chatSettings,
-        ILogger<CopilotRetrievalService> logger)
+        ILogger<CopilotRetrievalService> logger,
+        ITokenAcquisition tokenAcquisition)
     {
         _microsoft365Options = microsoft365Options.Value;
         _chatSettings = chatSettings.Value;
         _logger = logger;
+        _tokenAcquisition = tokenAcquisition;
 
-        // Use Interactive Browser Authentication for user context - store as field for reuse
-        _credential = _microsoft365Options.UseUserAuthentication
-            ? new InteractiveBrowserCredential(new InteractiveBrowserCredentialOptions
-            {
-                TenantId = _microsoft365Options.TenantId,
-                ClientId = _microsoft365Options.ClientId,
-                RedirectUri = new Uri("http://localhost")
-            })
-            : new DefaultAzureCredential();
+        // Create a delegated token credential for the authenticated user
+        var tokenCredential = new DelegateTokenCredential(_tokenAcquisition, _microsoft365Options.Scopes);
 
-        _graphClient = new GraphServiceClient(_credential, _microsoft365Options.Scopes);
+        _graphClient = new GraphServiceClient(tokenCredential, _microsoft365Options.Scopes);
     }
 
-    public async Task<List<RetrievedContent>> SearchAsync(string query, CancellationToken cancellationToken = default)
+    public async Task<List<RetrievedContent>> SearchAsync(string query, string _filterExpression, CancellationToken cancellationToken = default)
     {
         try
         {
-            _logger.LogInformation("Searching for query: {Query}", query);
-
             // Prepare the retrieval request body
             var requestBody = new
             {
                 queryString = query,
                 datasource = "sharepoint",
-                filterExpression = _microsoft365Options.FilterExpression,
+                // filterExpression = _filterExpression,
                 maximumNumberOfResults = _chatSettings.TopK,
                 resourceMetadata = new[] { "title", "author", "lastModifiedDateTime" }
             };
@@ -69,6 +64,7 @@ public class CopilotRetrievalService : IRetrievalService
             // Send request through Graph client
             var httpClient = new HttpClient();
             var token = await GetAccessTokenAsync();
+
             httpRequestMessage.Headers.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
             
             var response = await httpClient.SendAsync(httpRequestMessage, cancellationToken);
@@ -97,13 +93,17 @@ public class CopilotRetrievalService : IRetrievalService
                         Title = hit.ResourceMetadata?.Title ?? "Unknown",
                         Content = content,
                         Url = hit.WebUrl ?? "",
-                        Source = "SharePoint"
+                        Source = "SharePoint",
+                        FileAuthor = hit.ResourceMetadata?.Author ?? "Unknown"
                     });
                 }
             }
-
-            _logger.LogInformation("Retrieved {Count} items", retrievedContent.Count);
             return retrievedContent;
+        }
+        catch (MicrosoftIdentityWebChallengeUserException ex)
+        {
+            _logger.LogWarning(ex, "Authentication challenge required for query: {Query}", query);
+            throw; // Let the controller's AuthorizeForScopes handle this
         }
         catch (Exception ex)
         {
@@ -114,10 +114,21 @@ public class CopilotRetrievalService : IRetrievalService
 
     private async Task<string> GetAccessTokenAsync()
     {
-        var token = await _credential.GetTokenAsync(
-            new Azure.Core.TokenRequestContext(_microsoft365Options.Scopes),
-            CancellationToken.None);
-        return token.Token;
+        try
+        {
+            return await _tokenAcquisition.GetAccessTokenForUserAsync(_microsoft365Options.Scopes);
+        }
+        catch (Microsoft.Identity.Web.MicrosoftIdentityWebChallengeUserException ex)
+        {
+            _logger.LogWarning(ex, "User authentication challenge required - user needs to sign in or consent to permissions");
+            // Re-throw the original exception so AuthorizeForScopes can handle it
+            throw;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to acquire access token for user");
+            throw;
+        }
     }
 }
 

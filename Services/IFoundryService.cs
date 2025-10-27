@@ -4,5 +4,8 @@ namespace SPEAgentWithRetrieval.Services;
 
 public interface IFoundryService
 {
-    Task<string> GenerateResponseAsync(string userMessage, List<RetrievedContent> context, CancellationToken cancellationToken = default);
+    Task<string> GenerateResponseAsync(
+        List<RetrievedContent> rulesContext,
+        RetrievedContent filesContext,
+        CancellationToken cancellationToken = default);
 }
