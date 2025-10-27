@@ -200,6 +200,11 @@ The application is structured around the following components:
 - **Delegated Permissions**: Respects user's SharePoint access rights
 - **Token Security**: Uses Azure Identity SDK for secure token handling
 
+## Guidance
+
+Besides the tips below, you can find architectural diagrams in [here](./ARCHITECTURE.md).
+
+
 ## Troubleshooting
 
 ### Authentication Issues
@@ -268,3 +273,9 @@ These scripts will automatically:
 ## License
 
 This project is licensed under the MIT License.
+
+### Resources
+
+- [Revolutionize your Enterprise Data with ChatGPT: Next-gen Apps w/ Azure OpenAI and Azure AI Search](https://aka.ms/entgptsearchblog)
+- [Azure OpenAI Service](https://learn.microsoft.com/azure/cognitive-services/openai/overview)
+- [Azure AI Inference Client Library](https://learn.microsoft.com/en-us/python/api/overview/azure/ai-inference-readme?view=azure-python-preview)
