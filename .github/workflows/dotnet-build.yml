@@ -2,7 +2,13 @@ name: Build & Test .NET Deployment
 
 on:
   push:
-    branches: [ "main" ]
+    branches: [main, user/** ]
+  workflow_dispatch:
+    inputs:
+        reason:
+          description: The reason for running the workflow
+          required: false
+          default: Manual run
   pull_request:
     branches: [ "main" ]
 
@@ -18,8 +24,8 @@ jobs:
       with:
         dotnet-version: 8.0.x
     - name: Restore dependencies
-      run: dotnet restore ./app/app.sln
+      run: dotnet restore ./SPEAgentWithRetrieval.sln
     - name: Build
-      run: dotnet build ./app/app.sln -c Release
+      run: dotnet build ./SPEAgentWithRetrieval.sln -c Release
     - name: Test
-      run: dotnet test ./app/app.sln --verbosity normal -c Release
+      run: dotnet test ./SPEAgentWithRetrieval.sln --verbosity normal -c Release

@@ -1,4 +1,4 @@
-name: Template Validation Sample Workflow
+name: Template Validation
 on:
   push:
     branches: [main, user/** ]
