@@ -1,4 +1,4 @@
-name: Template Validation Sample Workflow
+name: Template Validation
 on:
   push:
     branches: [main, user/** ]
@@ -18,16 +18,24 @@ env:
   AZURE_ENV_NAME: ${{ vars.AZURE_ENV_NAME }}
   AZURE_LOCATION: ${{ vars.AZURE_LOCATION }}
 
+permissions:
+  contents: read
+  id-token: write
+  pull-requests: write
+
 jobs:
   template_validation_job:
     runs-on: windows-latest
     name: template validation
     steps:
+    
+      # Checkout code
       - uses: actions/checkout@v4
 
       - uses: microsoft/template-validation-action@Latest
         id: validation
         with: 
+          validateAzd: true
           useDevContainer: false
         env:
           AZURE_CLIENT_ID: ${{ vars.AZURE_CLIENT_ID }}
